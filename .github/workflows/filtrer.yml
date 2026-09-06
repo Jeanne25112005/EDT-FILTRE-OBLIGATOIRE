@@ -1,0 +1,52 @@
+name: Filtrer emploi du temps
+
+on:
+  schedule:
+    # Toutes les 6 heures (heure UTC)
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}  # permet de lancer manuellement depuis l'onglet Actions
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  filtrer-et-publier:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Récupérer le code
+        uses: actions/checkout@v4
+
+      - name: Installer Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Installer les dépendances
+        run: pip install -r requirements.txt
+
+      - name: Lancer le filtrage
+        env:
+          EDT_SOURCE_URL: ${{ secrets.EDT_SOURCE_URL }}
+        run: python3 filtrer_edt.py
+
+      - name: Préparer le dossier à publier
+        run: |
+          mkdir -p site
+          mv edt_filtre.ics site/edt_filtre.ics
+
+      - name: Configurer GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Uploader l'artefact pour Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Déployer sur GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
